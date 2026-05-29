@@ -15,6 +15,35 @@ const app = express();
 // JSON 파싱 미들웨어
 app.use(express.json());
 
+// Vercel 환경에서 라우팅 및 쿼리 파라미터가 유실되는 현상을 보완하는 미들웨어
+app.use((req, res, next) => {
+  const forwardedUrl = req.headers["x-forwarded-url"] as string;
+  const vercelUrl = req.headers["x-vercel-forwarded-url"] as string;
+  const matchedPath = req.headers["x-matched-path"] as string;
+
+  if (forwardedUrl) {
+    req.url = forwardedUrl;
+  } else if (vercelUrl) {
+    req.url = vercelUrl;
+  } else if (matchedPath && !matchedPath.includes("index")) {
+    req.url = matchedPath;
+  }
+
+  // Vercel 환경에서 쿼리 파라미터가 req.query에 자동 할당되지 않은 경우를 대비한 싱크 작업
+  if (req.url.includes("?")) {
+    const urlParts = req.url.split("?");
+    const queryStr = urlParts[1];
+    const params = new URLSearchParams(queryStr);
+    const queryObj: Record<string, string> = {};
+    params.forEach((value, key) => {
+      queryObj[key] = value;
+    });
+    req.query = { ...queryObj, ...req.query };
+  }
+
+  next();
+});
+
   // KOBIS 일일 박스오피스 API 프록시
   app.get(["/api/boxoffice", "/boxoffice"], async (req, res) => {
     try {

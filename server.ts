@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -17,7 +16,7 @@ const app = express();
 app.use(express.json());
 
   // KOBIS 일일 박스오피스 API 프록시
-  app.get("/api/boxoffice", async (req, res) => {
+  app.get(["/api/boxoffice", "/boxoffice"], async (req, res) => {
     try {
       const date = req.query.date as string;
       if (!date || !/^\d{8}$/.test(date)) {
@@ -41,7 +40,7 @@ app.use(express.json());
   });
 
   // KOBIS 영화 상세 목록 API 프록시
-  app.get("/api/movieinfo", async (req, res) => {
+  app.get(["/api/movieinfo", "/movieinfo"], async (req, res) => {
     try {
       const movieCd = req.query.movieCd as string;
       if (!movieCd) {
@@ -65,7 +64,7 @@ app.use(express.json());
   });
 
   // Gemini 영화 감상평 생성 API
-  app.post("/api/review", async (req, res) => {
+  app.post(["/api/review", "/review"], async (req, res) => {
     try {
       const { movieNm, keywords } = req.body;
 
@@ -127,7 +126,7 @@ app.use(express.json());
   });
 
   // Gemini Search Grounding 영화 포스터 조회 API
-  app.get("/api/poster", async (req, res) => {
+  app.get(["/api/poster", "/poster"], async (req, res) => {
     try {
       const movieNm = req.query.movieNm as string;
       const openDt = req.query.openDt as string;
@@ -196,13 +195,17 @@ app.use(express.json());
   // 개발 환경과 실서비스 환경에 상이한 static 파일 서빙 구성 (Vercel 서버리스 환경 제외)
   if (!process.env.VERCEL) {
     if (process.env.NODE_ENV !== "production") {
-      createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      }).then((vite) => {
-        app.use(vite.middlewares);
+      import("vite").then(({ createServer: createViteServer }) => {
+        createViteServer({
+          server: { middlewareMode: true },
+          appType: "spa",
+        }).then((vite) => {
+          app.use(vite.middlewares);
+        }).catch((err) => {
+          console.error("Vite server initialization failed:", err);
+        });
       }).catch((err) => {
-        console.error("Vite server initialization failed:", err);
+        console.error("Failed to dynamically import vite:", err);
       });
     } else {
       const distPath = path.join(process.cwd(), "dist");

@@ -11,12 +11,10 @@ const DEFAULT_API_KEY = "71659871ae605b875ef2d9fa87c037fc";
 // 포스터 이미지 URL 캐시
 const posterCache = new Map<string, string>();
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
 
-  // JSON 파싱 미들웨어
-  app.use(express.json());
+// JSON 파싱 미들웨어
+app.use(express.json());
 
   // KOBIS 일일 박스오피스 API 프록시
   app.get("/api/boxoffice", async (req, res) => {
@@ -195,26 +193,29 @@ async function startServer() {
     }
   });
 
-  // 개발 환경과 실서비스 환경에 상이한 static 파일 서빙 구성
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+  // 개발 환경과 실서비스 환경에 상이한 static 파일 서빙 구성 (Vercel 서버리스 환경 제외)
+  if (!process.env.VERCEL) {
+    if (process.env.NODE_ENV !== "production") {
+      createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      }).then((vite) => {
+        app.use(vite.middlewares);
+      }).catch((err) => {
+        console.error("Vite server initialization failed:", err);
+      });
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+
+    const PORT = 3000;
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
-
-startServer().catch((err) => {
-  console.error("Server start failed:", err);
-});
+export default app;

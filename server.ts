@@ -53,9 +53,14 @@ app.use((req, res, next) => {
       }
 
       const apiKey = process.env.KOBIS_API_KEY || DEFAULT_API_KEY;
-      const url = `http://kobis.or.kr/kobisopenapi/webservice/rest/boxoffice/searchDailyBoxOfficeList.json?key=${apiKey}&targetDt=${date}`;
+      const url = `https://www.kobis.or.kr/kobisopenapi/webservice/rest/boxoffice/searchDailyBoxOfficeList.json?key=${apiKey}&targetDt=${date}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
       if (!response.ok) {
         throw new Error(`KOBIS API responded with status ${response.status}`);
       }
@@ -64,7 +69,10 @@ app.use((req, res, next) => {
       res.json(data);
     } catch (error: any) {
       console.error("Box Office API Error:", error);
-      res.status(500).json({ error: "일일 박스오피스 데이터를 불러오는 중 오류가 발생했습니다." });
+      res.status(500).json({ 
+        error: "일일 박스오피스 데이터를 불러오는 중 오류가 발생했습니다.",
+        details: error?.message || String(error)
+      });
     }
   });
 
@@ -77,9 +85,14 @@ app.use((req, res, next) => {
       }
 
       const apiKey = process.env.KOBIS_API_KEY || DEFAULT_API_KEY;
-      const url = `http://www.kobis.or.kr/kobisopenapi/webservice/rest/movie/searchMovieInfo.json?key=${apiKey}&movieCd=${movieCd}`;
+      const url = `https://www.kobis.or.kr/kobisopenapi/webservice/rest/movie/searchMovieInfo.json?key=${apiKey}&movieCd=${movieCd}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
       if (!response.ok) {
         throw new Error(`KOBIS Detail API responded with status ${response.status}`);
       }
@@ -88,7 +101,10 @@ app.use((req, res, next) => {
       res.json(data);
     } catch (error: any) {
       console.error("Movie Detail API Error:", error);
-      res.status(500).json({ error: "영화 상세 정보를 불러오는 중 오류가 발생했습니다." });
+      res.status(500).json({ 
+        error: "영화 상세 정보를 불러오는 중 오류가 발생했습니다.",
+        details: error?.message || String(error)
+      });
     }
   });
 

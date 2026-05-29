@@ -66,6 +66,68 @@ async function startServer() {
     }
   });
 
+  // Gemini 영화 감상평 생성 API
+  app.post("/api/review", async (req, res) => {
+    try {
+      const { movieNm, keywords } = req.body;
+
+      if (!movieNm) {
+        return res.status(400).json({ error: "movieNm(영화 이름)이 필요합니다." });
+      }
+
+      if (!keywords || !Array.isArray(keywords) || keywords.length === 0) {
+        return res.status(400).json({ error: "keywords(키워드 목록)가 필요합니다." });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        console.warn("GEMINI_API_KEY가 존재하지 않습니다.");
+        return res.status(500).json({ error: "감상평 기능을 위한 AI API 키가 설정되지 않았습니다." });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          },
+        },
+      });
+
+      const keywordsStr = keywords.map((k: string) => `"${k.trim()}"`).join(", ");
+      const prompt = `당신은 전문 영화 평론가입니다. 영화 "${movieNm}"에 대해 사용자가 제공한 3가지 키워드 [${keywordsStr}]를 자연스럽고 깊이 있게 녹여낸 3-4문장 정도의 한글 영화 감상평을 작성해 주세요. 
+출력은 다음 JSON 형식으로만 해주세요:
+{
+  "review": "여기에 감상평을 작성하세요."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              review: {
+                type: Type.STRING,
+                description: "감상평 텍스트",
+              },
+            },
+            required: ["review"],
+          },
+        },
+      });
+
+      const text = response.text || "";
+      const resultObj = JSON.parse(text.trim());
+      res.json({ review: resultObj.review || "" });
+    } catch (error: any) {
+      console.error("Gemini Review generator error:", error);
+      res.status(500).json({ error: "감상평을 자동 생성하는 도중 오류가 발생했습니다." });
+    }
+  });
+
   // Gemini Search Grounding 영화 포스터 조회 API
   app.get("/api/poster", async (req, res) => {
     try {

@@ -70,6 +70,14 @@ export default function App() {
   const [moviePoster, setMoviePoster] = useState<string | null>(null);
   const [isPosterLoading, setIsPosterLoading] = useState<boolean>(false);
 
+  // AI 감상평 생성 기능 상태
+  const [keyword1, setKeyword1] = useState<string>("");
+  const [keyword2, setKeyword2] = useState<string>("");
+  const [keyword3, setKeyword3] = useState<string>("");
+  const [reviewResult, setReviewResult] = useState<string | null>(null);
+  const [isGeneratingReview, setIsGeneratingReview] = useState<boolean>(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
   // 어제 날짜 구하기 헬퍼
   function getYesteryesterdayIfUnavailable() {
     return getYesterdayString();
@@ -138,6 +146,13 @@ export default function App() {
       setIsDetailLoading(true);
       setDetailError(null);
 
+      // 새 영화 선택 시 감상평 입력 폼 초기화
+      setKeyword1("");
+      setKeyword2("");
+      setKeyword3("");
+      setReviewResult(null);
+      setReviewError(null);
+
       try {
         const response = await fetch(`/api/movieinfo?movieCd=${selectedMovieCd}`);
         if (!response.ok) {
@@ -194,6 +209,53 @@ export default function App() {
 
     fetchPoster();
   }, [selectedMovieCd, boxOfficeList]);
+
+  // AI 감상평 생성 요청 처리기
+  const handleGenerateReview = async () => {
+    const activeMovieNm = movieDetail?.movieNm || selectedBoxOfficeItem?.movieNm;
+    if (!activeMovieNm) {
+      setReviewError("선택된 영화 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    const k1 = keyword1.trim();
+    const k2 = keyword2.trim();
+    const k3 = keyword3.trim();
+
+    if (!k1 || !k2 || !k3) {
+      setReviewError("감상평을 생성하려면 3개의 키워드를 모두 입력해 주세요.");
+      return;
+    }
+
+    setIsGeneratingReview(true);
+    setReviewError(null);
+    setReviewResult(null);
+
+    try {
+      const response = await fetch("/api/review", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          movieNm: activeMovieNm,
+          keywords: [k1, k2, k3],
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "감상평 생성 도중 오류가 발생했습니다.");
+      }
+
+      const data = await response.json();
+      setReviewResult(data.review);
+    } catch (err: any) {
+      setReviewError(err.message || "감상평을 가져오지 못했습니다.");
+    } finally {
+      setIsGeneratingReview(false);
+    }
+  };
 
   // 날짜 간편 내비게이터 (하루 이동)
   const handleDateChangeByDays = (days: number) => {
@@ -677,6 +739,129 @@ export default function App() {
                           {selectedBoxOfficeItem ? selectedBoxOfficeItem.salesShare : "0"}%
                         </p>
                       </div>
+                    </div>
+
+                    {/* Generative AI Movie Review Section */}
+                    <div className={`mt-8 p-5 border rounded-lg ${
+                      theme === "dark" 
+                        ? "bg-[#0d0d0d] border-[#222]" 
+                        : "bg-red-50/10 border-red-200/60"
+                    }`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="w-4 h-4 text-red-500 animate-pulse" />
+                        <h3 className={`text-xs font-bold uppercase tracking-wider ${
+                          theme === "dark" ? "text-slate-200" : "text-slate-800"
+                        }`}>
+                          AI 키워드 감상평 생성기
+                        </h3>
+                        <span className="px-1.5 py-0.5 bg-red-600/10 border border-red-500/20 text-red-500 text-[9px] font-mono rounded select-none">
+                          GEMINI 3.5
+                        </span>
+                      </div>
+                      
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                        선택된 영화에 어울리는 3가지 키워드를 입력해 주세요. AI 평론가가 해당 키워드를 결합하여 전문적인 감상평을 작성해 드립니다.
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div className="flex flex-col">
+                          <label className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-1">키워드 1</label>
+                          <input
+                            type="text"
+                            maxLength={15}
+                            value={keyword1}
+                            onChange={(e) => setKeyword1(e.target.value)}
+                            placeholder="예: 압도적인 스케일"
+                            className={`px-3 py-2 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-red-500 ${
+                              theme === "dark" 
+                                ? "bg-[#161616] border-[#333] text-slate-200 placeholder-zinc-600 focus:border-[#444]" 
+                                : "bg-white border-slate-200 text-slate-800 placeholder-slate-400"
+                            }`}
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-1">키워드 2</label>
+                          <input
+                            type="text"
+                            maxLength={15}
+                            value={keyword2}
+                            onChange={(e) => setKeyword2(e.target.value)}
+                            placeholder="예: 몰입감 최고"
+                            className={`px-3 py-2 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-red-500 ${
+                              theme === "dark" 
+                                ? "bg-[#161616] border-[#333] text-slate-200 placeholder-zinc-600 focus:border-[#444]" 
+                                : "bg-white border-slate-200 text-slate-800 placeholder-slate-400"
+                            }`}
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-1">키워드 3</label>
+                          <input
+                            type="text"
+                            maxLength={15}
+                            value={keyword3}
+                            onChange={(e) => setKeyword3(e.target.value)}
+                            placeholder="예: 깊은 주말의 여운"
+                            className={`px-3 py-2 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-red-500 ${
+                              theme === "dark" 
+                                ? "bg-[#161616] border-[#333] text-slate-200 placeholder-zinc-600 focus:border-[#444]" 
+                                : "bg-white border-slate-200 text-slate-800 placeholder-slate-400"
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      {reviewError && (
+                        <p className="text-[11px] text-red-500 mb-3 font-medium">
+                          {reviewError}
+                        </p>
+                      )}
+
+                      <button
+                        onClick={handleGenerateReview}
+                        disabled={isGeneratingReview || !keyword1.trim() || !keyword2.trim() || !keyword3.trim()}
+                        className={`w-full py-2.5 rounded-md text-xs font-bold font-sans flex items-center justify-center gap-1.5 transition-all select-none cursor-pointer ${
+                          isGeneratingReview 
+                            ? "bg-red-600/20 text-red-500 border border-red-950/40 cursor-not-allowed" 
+                            : !keyword1.trim() || !keyword2.trim() || !keyword3.trim()
+                            ? "bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed border border-transparent"
+                            : "bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-900/10 border border-transparent"
+                        }`}
+                      >
+                        {isGeneratingReview ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-red-600/30 border-t-red-500 rounded-full animate-spin"></div>
+                            감상평 만드는 중...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            감상평 작성하기
+                          </>
+                        )}
+                      </button>
+
+                      <AnimatePresence mode="wait">
+                        {reviewResult && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className={`mt-4 p-4 rounded-md border border-dashed text-xs leading-relaxed ${
+                              theme === "dark" 
+                                ? "bg-[#121212] border-red-900/20 text-slate-200" 
+                                : "bg-red-50/10 border-red-200/50 text-slate-700"
+                            }`}
+                          >
+                            <p className="text-[10px] font-bold text-red-500 mb-1.5 uppercase tracking-wider font-mono">
+                              Cinema Review Critique
+                            </p>
+                            <span className="font-serif italic font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100 block">
+                              "{reviewResult}"
+                            </span>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-8 pb-4">

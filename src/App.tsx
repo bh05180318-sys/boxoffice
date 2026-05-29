@@ -66,6 +66,10 @@ export default function App() {
   const [isDetailLoading, setIsDetailLoading] = useState<boolean>(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
+  // 포스터 이미지 및 로딩 상태
+  const [moviePoster, setMoviePoster] = useState<string | null>(null);
+  const [isPosterLoading, setIsPosterLoading] = useState<boolean>(false);
+
   // 어제 날짜 구하기 헬퍼
   function getYesteryesterdayIfUnavailable() {
     return getYesterdayString();
@@ -160,6 +164,36 @@ export default function App() {
 
     fetchMovieDetail();
   }, [selectedMovieCd]);
+
+  // 영화 포스터 조회 (선택된 영화나 목록이 바뀔 때)
+  useEffect(() => {
+    if (!selectedMovieCd) {
+      setMoviePoster(null);
+      return;
+    }
+
+    const item = boxOfficeList.find(m => m.movieCd === selectedMovieCd);
+    if (!item) return;
+
+    const fetchPoster = async () => {
+      setIsPosterLoading(true);
+      try {
+        const response = await fetch(`/api/poster?movieNm=${encodeURIComponent(item.movieNm)}&openDt=${item.openDt}`);
+        if (!response.ok) {
+          throw new Error("포스터 연결 실패");
+        }
+        const data = await response.json();
+        setMoviePoster(data.posterUrl || null);
+      } catch (err) {
+        console.error("Failed to load poster:", err);
+        setMoviePoster(null);
+      } finally {
+        setIsPosterLoading(false);
+      }
+    };
+
+    fetchPoster();
+  }, [selectedMovieCd, boxOfficeList]);
 
   // 날짜 간편 내비게이터 (하루 이동)
   const handleDateChangeByDays = (days: number) => {
@@ -459,25 +493,61 @@ export default function App() {
                 transition={{ duration: 0.25 }}
                 className="flex flex-col xl:flex-row gap-8 lg:gap-12"
               >
-                {/* 1. Poster Placeholder */}
-                <div className={`w-full xl:w-72 h-44 xl:h-110 border shrink-0 rounded-sm flex items-center justify-center p-6 text-center select-none relative overflow-hidden ${
+                {/* 1. Poster Container */}
+                <div className={`w-full xl:w-72 h-80 xl:h-110 border shrink-0 rounded-sm flex items-center justify-center text-center relative overflow-hidden ${
                   theme === "dark" ? "bg-[#0d0d0d] border-[#222]" : "bg-slate-50 border-slate-200"
                 }`}>
-                  <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
-                  <div>
-                    <div className="w-10 h-0.5 bg-red-600 mx-auto mb-4"></div>
-                    <p className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1">
-                      Cinema Overview
-                    </p>
-                    <p className="font-serif italic text-xl md:text-2xl text-slate-800 dark:text-slate-100 max-w-64 leading-relaxed tracking-wide font-extrabold">
-                      {movieDetail?.movieNm || selectedBoxOfficeItem?.movieNm}
-                    </p>
-                    {movieDetail?.movieNmEn && (
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 italic mt-1 max-w-60 mx-auto truncate">
-                        {movieDetail.movieNmEn}
+                  {isPosterLoading ? (
+                    <div className="flex flex-col items-center justify-center space-y-3 p-6">
+                      <div className="w-8 h-8 rounded-full border-2 border-red-600/30 border-t-red-500 animate-spin"></div>
+                      <p className="text-[10px] text-slate-500 tracking-widest uppercase font-mono">Fetching Poster...</p>
+                    </div>
+                  ) : moviePoster ? (
+                    <div className="absolute inset-0 w-full h-full group">
+                      <img
+                        src={moviePoster}
+                        alt={`${movieDetail?.movieNm || selectedBoxOfficeItem?.movieNm} Poster`}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover absolute inset-0 transition-transform duration-500 hover:scale-105"
+                        onError={(e) => {
+                          console.warn("Poster load failed, fallback to typography template.");
+                          (e.target as HTMLImageElement).style.display = "none";
+                          setMoviePoster(null);
+                        }}
+                      />
+                      {/* Dark gradient overlay for text legibility */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/60 flex flex-col justify-end p-5 text-left select-none">
+                        <div className="w-8 h-0.5 bg-red-600 mb-2"></div>
+                        <p className="text-[9px] uppercase tracking-widest text-slate-400 font-bold mb-0.5 font-mono">
+                          Cinema Overview
+                        </p>
+                        <h4 className="font-serif italic text-lg sm:text-xl text-white font-extrabold line-clamp-2 leading-snug">
+                          {movieDetail?.movieNm || selectedBoxOfficeItem?.movieNm}
+                        </h4>
+                        {movieDetail?.movieNmEn && (
+                          <p className="text-[10px] text-slate-300 italic truncate mt-0.5 max-w-[240px]">
+                            {movieDetail.movieNmEn}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-6">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
+                      <div className="w-10 h-0.5 bg-red-600 mx-auto mb-4"></div>
+                      <p className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1 font-mono">
+                        Cinema Overview
                       </p>
-                    )}
-                  </div>
+                      <p className="font-serif italic text-xl md:text-2xl text-slate-800 dark:text-slate-100 max-w-64 leading-relaxed tracking-wide font-extrabold">
+                        {movieDetail?.movieNm || selectedBoxOfficeItem?.movieNm}
+                      </p>
+                      {movieDetail?.movieNmEn && (
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 italic mt-1 max-w-60 mx-auto truncate">
+                          {movieDetail.movieNmEn}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 2. Movie Info Content */}

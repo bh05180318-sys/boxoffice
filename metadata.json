@@ -1,0 +1,6 @@
+{
+  "name": "KOBIS Box Office Tracker",
+  "description": "KOBIS OpenAPI를 연동하여 일일 박스오피스 순위 및 상세 영화 정보를 조회할 수 있는 세련된 대시보드입니다. 다크 모드 및 라이트 모드 조절, 그리고 과거 날짜 선택 조회가 가능합니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
